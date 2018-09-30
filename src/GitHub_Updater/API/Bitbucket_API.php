@@ -50,6 +50,28 @@ class Bitbucket_API extends API implements API_Interface {
 		$this->settings_hook( $this );
 		$this->add_settings_subtab();
 		$this->add_install_fields( $this );
+
+		add_action( 'requests-requests.before_redirect', [ $this, 'handle_amazon_aws_redirect' ],10,2);
+	}
+
+	/**
+	 * Handle Downloads from amazon AWS
+	 * Makes sure the request to AWS does not contain an HTTP basic auth header.
+	 */
+	public function handle_amazon_aws_redirect( $location, &$request_headers ) {
+		// parse redirect url
+		$arr_url = parse_url( $location );
+
+		// parse query string
+		parse_str( $arr_url['query'], $query );
+
+		// check if 1. the request is for amazon aws, 2. there are authentication information in it and 3. if we're sending http basic auth, which amazon doesn't like.
+		if ( preg_match('/s3\.amazonaws\.com$/', $arr_url['host'] ) !== 0 // amazon AWS?
+			&& isset( $query['Signature'] )  // authorization present in redirect URL?
+			&& isset( $req_headers['Authorization'] ) // HTTP Auth present in request headers?
+		) {
+			unset( $req_headers['Authorization'] ); // get rid of it!
+		}
 	}
 
 	/**
@@ -164,8 +186,12 @@ class Bitbucket_API extends API implements API_Interface {
 		$endpoint           = '';
 
 		if ( $this->type->release_asset && '0.0.0' !== $this->type->newest_tag ) {
+			/*
 			$release_asset_url = $this->make_release_asset_download_link();
 			return $this->get_aws_release_asset_url( $release_asset_url );
+			/*/
+			return $this->make_release_asset_download_link();
+			//*/
 		}
 
 		/*
